@@ -14,13 +14,14 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-if (!defined('_PS_VERSION_'))
+if (!defined('_PS_VERSION_')) {
     exit;
+}
 if (!defined('_MYSQL_ENGINE_')) {
     define('_MYSQL_ENGINE_', 'MyISAM');
 }
 
-require_once __DIR__.'/vendor/autoload.php'; // Autoload here for the module definition
+require_once 'vendor/autoload.php'; // Autoload here for the module definition
 
 use League\Flysystem\Adapter\Local;
 use League\Flysystem\Filesystem;
@@ -33,7 +34,17 @@ class Klantenvertellen extends Module
     private $query_group_by = '';
     private $option = '';
     private $id_country = '';
-    private $config = array('CONNECTOR' => '', 'COMPANY_EMAIL' => '', 'LOCATION_ID' => '', 'DELAY' => 1, 'ORDER_STATUS' => '', 'SERVER' => '', 'DEBUG' => '', 'LANGUAGE' => '','SHOW_RATING'=>'0');
+    private $config = array(
+        'CONNECTOR' => '',
+        'COMPANY_EMAIL' => '',
+        'LOCATION_ID' => '',
+        'DELAY' => 1,
+        'ORDER_STATUS' => '',
+        'SERVER' => '',
+        'DEBUG' => '',
+        'LANGUAGE' => '',
+        'SHOW_RATING' => '0'
+    );
 
     private $cache;
     private $cache_ttl = 300; //the number of seconds in which the cached value will expire
@@ -53,21 +64,24 @@ class Klantenvertellen extends Module
         $this->getPsVersion();
 
         $this->displayName = $this->l('klantenvertellen Customer Review');
-        $this->description = $this->l('klantenvertellen.nl users can use this plug-in automatically collect customer reviews');
+        $this->description = $this->l('klantenvertellen users can automatically collect customer reviews');
         $this->ps_versions_compliancy = array('min' => '1.4.0.0', 'max' => '1.7.99.99');
         $configs = unserialize(Configuration::get('KLANTENVERTELLEN_SETTINGS'));
-        if(!is_array($configs)){
+        if (!is_array($configs)) {
             $configs = array();
         }
-        $this->config = array_merge($this->config,$configs);
+        $this->config = array_merge($this->config, $configs);
 
-        if (!extension_loaded('curl'))
+        if (!extension_loaded('curl')) {
             $this->warning = $this->l('cURL extension must be enabled on your server to use this module.');
+        }
 
-        if (isset($this->config['WARNING']) && $this->config['WARNING'])
+        if (isset($this->config['WARNING']) && $this->config['WARNING']) {
             $this->warning = $this->config['WARNING'];
-        if (_PS_VERSION_ < '1.5' && _PS_VERSION_ > '1.3')
+        }
+        if (_PS_VERSION_ < '1.5' && _PS_VERSION_ > '1.3') {
             require(_PS_MODULE_DIR_ . $this->name . '/backward_compatibility/backward.php');
+        }
         if (_PS_VERSION_ < '1.4' && !class_exists('Context', false)) {
             require(_PS_MODULE_DIR_ . $this->name . '/backward_compatibility/Context.php');
             $this->context = Context::getContext();
@@ -83,14 +97,17 @@ class Klantenvertellen extends Module
 
     public function install()
     {
-        if (!parent::install())
+        if (!parent::install()) {
             return false;
+        }
         if ($this->psv >= 1.5) {
-            if (!$this->registerHook('actionOrderStatusUpdate'))
+            if (!$this->registerHook('actionOrderStatusUpdate')) {
                 return false;
+            }
         } elseif ($this->psv < 1.5) {
-            if (!$this->registerHook('updateOrderStatus'))
+            if (!$this->registerHook('updateOrderStatus')) {
                 return false;
+            }
         }
         if (!in_array('curl', get_loaded_extensions())) {
             $this->_errors[] = $this->l('Unable to install the module (php5-curl required).');
@@ -113,8 +130,9 @@ class Klantenvertellen extends Module
 
     public function uninstall()
     {
-        if (!parent::uninstall())
+        if (!parent::uninstall()) {
             return false;
+        }
         Configuration::deleteByName('KLANTENVERTELLEN_SETTINGS');
         return (Db::getInstance()->execute('DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'klantenvertellen`'));
     }
@@ -175,7 +193,7 @@ class Klantenvertellen extends Module
                 $url = $data['viewReviewUrl'];
                 $reviews = $data['numberReviews'];
                 $show_rating = 'display:none;';
-                if($this->config['SHOW_RATING']=='1'){
+                if ($this->config['SHOW_RATING'] == '1') {
                     $show_rating = 'display:block;';
                 }
                 $this->smarty->assign(array(
@@ -184,7 +202,7 @@ class Klantenvertellen extends Module
                     'maxrating' => $maxrating,
                     'url' => $url,
                     'reviews' => $reviews,
-                    'show_rating'=>$show_rating
+                    'show_rating' => $show_rating
                 ));
                 return $this->display(__FILE__, $tpl . '.tpl', $this->getCacheId());
             } else {
@@ -201,10 +219,10 @@ class Klantenvertellen extends Module
 
         $url = "https://klantenvertellen.nl/v1/publication/review/external?locationId=" . $location_id;
 
-	    $key = md5($url);
-	    if ($data = $this->cache->get($key)) {
-	    	return $data;
-	    }
+        $key = md5($url);
+        if ($data = $this->cache->get($key)) {
+            return $data;
+        }
 
         $ch = curl_init();
 
@@ -218,9 +236,9 @@ class Klantenvertellen extends Module
         $output = curl_exec($ch);
         curl_close($ch);
 
-        $data = json_decode($output,true);
+        $data = json_decode($output, true);
         if (isset($data['averageRating'])) {
-	        $this->cache->set($key, $data, $this->cache_ttl);
+            $this->cache->set($key, $data, $this->cache_ttl);
         }
 
         return $data;
@@ -231,7 +249,8 @@ class Klantenvertellen extends Module
         $output = '
 		<form action="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '" method="post">
 			<fieldset class="width2">
-				<legend><img src="../img/admin/cog.gif" alt="" class="middle" />' . $this->l('Settings') . '</legend>
+				<legend><img src="../img/admin/cog.gif" alt="" class="middle" />' .
+            $this->l('Settings') . '</legend>
 
                                 <label>' . $this->l('Module Version') . '</label>
 				<div class="margin-form">
@@ -239,63 +258,61 @@ class Klantenvertellen extends Module
                                 </div>
 				<label>' . $this->l('Enter hash') . '</label>
 				<div class="margin-form">
-					<input type="text" name="connector" value="' . Tools::safeOutput(Tools::getValue('connector', $this->config['CONNECTOR'])) . '" />
-					<p class="clear">' . $this->l('Enter here the Klantenvertellen hash from your Klantenvertellen Account.') . '</p>
+					<input type="text" name="connector" value="' .
+            Tools::safeOutput(Tools::getValue('connector', $this->config['CONNECTOR'])) . '" />
+					<p class="clear">' .
+            $this->l('Enter here the Klantenvertellen hash from your Klantenvertellen Account.') . '</p>
                                 </div>
 
 
                                 <label>' . $this->l('Location Id') . '</label>
                                 <div class="margin-form">
-					<input type="text" name="location_id" value="' . Tools::safeOutput(Tools::getValue('location_id', $this->config['LOCATION_ID'])) . '" />
-					<p class="clear">' . $this->l('Enter here your "Location id" as registered in your Klantenvertellen account') . '</p>
+					<input type="text" name="location_id"
+					    value="' . Tools::safeOutput(Tools::getValue('location_id', $this->config['LOCATION_ID']))
+            . '" />
+					<p class="clear">' .
+            $this->l('Enter here your "Location id" as registered in your Klantenvertellen account')
+            . '</p>
                                 </div>
 
                                 <label>' . $this->l('Enter delay') . '</label>
                                 <div class="margin-form">
-					<input type="text" name="delay" value="' . Tools::safeOutput(Tools::getValue('delay', $this->config['DELAY'])) . '" />
-					<p class="clear">' . $this->l('Enter here the delay(number of days) after which you would like to send review invite email to your customer. This delay applies after customer event(order status change - to be selected at next option). Minimal value is 1.') . '</p>
-                                </div>
+					<input type="text" name="delay"
+					    value="' . Tools::safeOutput(Tools::getValue('delay', $this->config['DELAY'])) . '" />
+					<p class="clear">'
+            . $this->l('Enter here the delay(number of days) after which you would like '
+                . 'to send review invite email to your customer. This delay applies after'
+                . ' customer event(order status change - to be selected at next option).'
+                . ' Minimal value is 1.') . '</p>
+                </div>
 
                                 ';
-                $output .= $this->selectHtml(
-                            array(
-                                'title'=>$this->l('Show rating'),
-                                'name'=>'show_rating',
-                                'options'=>array(
-                                    '0'=>$this->l('Hide'),
-                                    '1'=>$this->l('Show'),
-                                )
-                            )
-                        );
-//                $output .= $this->selectHtml(
-//                    array(
-//                        'title'=>$this->l('Select Event'),
-//                        'name'=>'kiyoh_event',
-//                        'options'=>array(
-//                            'shipping'=>$this->l('Shipping'),
-//                            'purchase'=>$this->l('Purchase'),
-//                            'order_status_change'=>$this->l('Order status change'),
-//                        ),
-//                        'notice'=> '<p class="clear">'.$this->l('Enter here the event after which you would like to send review invite email to your customer. Enter Shipping if your store sells products that need shipping. Enter Purchase if your store sells downloadable products(softwares).').'</p>'
-//                    )
-//                );
+        $output .= $this->selectHtml(
+            array(
+                'title' => $this->l('Show rating'),
+                'name' => 'show_rating',
+                'options' => array(
+                    '0' => $this->l('Hide'),
+                    '1' => $this->l('Show'),
+                )
+            )
+        );
         $id_lang = $this->context->language->id;
         $states = OrderState::getOrderStates($id_lang);
         $options = array();
-        foreach ($states as $state)
+        foreach ($states as $state) {
             $options[$state['id_order_state']] = $state['name'];
+        }
 
         $output .= $this->selectHtml(
             array(
                 'title' => $this->l('Order Status Change Event'),
                 'name' => 'order_status',
                 'options' => $options,
-                //'notice'=>
                 'multiple' => 'multiple',
-//                        'depends'=>array(
-//                            'kiyoh_event'=>'order_status_change'
-//                        )
-                'notice' => '<p class="clear">' . $this->l('Enter here the event after which you would like to send review invite email to your customer.') . '</p>'
+                'notice' => '<p class="clear">'
+                    . $this->l('Enter here the event after which you would like to'
+                        . ' send review invite email to your customer.') . '</p>'
             )
         );
         unset($options);
@@ -314,12 +331,16 @@ class Klantenvertellen extends Module
         );
         $output .= '<label>' . $this->l('Enter language') . '</label>
                     <div class="margin-form">
-                        <input type="text" name="language" value="' . Tools::safeOutput(Tools::getValue('language', $this->config['LANGUAGE'])) . '" />
+                        <input type="text" name="language"
+                            value="' . Tools::safeOutput(Tools::getValue('language', $this->config['LANGUAGE']))
+            . '" />
                         <p class="clear">' . $this->l('') . '</p>
                     </div>';
 
         $output .= '
-				<div class="margin-form"><input type="submit" name="submitKlantenvertellen" value="' . $this->l('Save') . '" class="button" /></div>
+				<div class="margin-form">
+				    <input type="submit" name="submitKlantenvertellen"
+				        value="' . $this->l('Save') . '" class="button" /></div>
 			</fieldset>
 		</form>';
 
@@ -332,7 +353,8 @@ class Klantenvertellen extends Module
         if (isset($config['multiple'])) {
             $multiple = $config['multiple'];
         }
-        $html = '<div id="klantenvertellen_' . $config['name'] . '"><label for="' . $config['name'] . '">' . $config['title'] . '</label>
+        $html = '<div id="klantenvertellen_' . $config['name'] . '">' .
+            '<label for="' . $config['name'] . '">' . $config['title'] . '</label>
                         <div class="margin-form">
                             <select name="' . $config['name'] . ($multiple ? '[]' : '') . '" ' . $multiple . '>';
         $options = $config['options'];
@@ -354,7 +376,6 @@ class Klantenvertellen extends Module
 
         $html .= '</div>';
         return $html;
-
     }
 
     public function hookActionOrderStatusUpdate($params)
@@ -362,7 +383,7 @@ class Klantenvertellen extends Module
         $dispatched_order_statuses = $this->config['ORDER_STATUS'];
         $object = $params['newOrderStatus'];
         $new_order_status = $object->id;
-        if(!is_array($dispatched_order_statuses)){
+        if (!is_array($dispatched_order_statuses)) {
             $dispatched_order_statuses = array();
         }
         //if ($event === 'order_status_change'){
@@ -398,7 +419,7 @@ class Klantenvertellen extends Module
         }
         $hash = $this->config['CONNECTOR'];
         $custom_delay_1 = $this->config['DELAY'];
-        if($custom_delay_1==0){
+        if ($custom_delay_1 == 0) {
             $custom_delay_1 = 1;
         }
         $language = $this->config['LANGUAGE'];
@@ -406,7 +427,9 @@ class Klantenvertellen extends Module
         $first_name = $customer->firstname;
         $last_name = $customer->lastname;
 
-        if (!$email || !$location_id || !$hash) return false;
+        if (!$email || !$location_id || !$hash) {
+            return false;
+        }
 
         $url = "https://klantenvertellen.nl/v1/invite/external?" .
             "hash={$hash}" .
@@ -435,23 +458,38 @@ class Klantenvertellen extends Module
             && isset($response['detailedError']['0'])
             && isset($response['detailedError']['0']['errorCode'])
             && $response['detailedError']['0']['errorCode'] == 'INVITATION_ALREADY_PLACED'
-        ){
+        ) {
             $alreadySent = true;
         }
         if (!isset($response['code']) || $response['code'] !== 'OK') {
-            if (isset($response['errorCode']) && !$alreadySent){
+            if (isset($response['errorCode']) && !$alreadySent) {
                 $this->config['WARNING'] = trim($response['errorCode']);
                 Configuration::updateValue('KLANTENVERTELLEN_SETTINGS', serialize($this->config));
             }
         }
         if (_PS_VERSION_ >= '1.4') {
-            if ($err || $alreadySent || !isset($response['code']) || $response['code'] !== 'OK' || $this->config['DEBUG']) {
+            if ($err
+                || $alreadySent
+                || !isset($response['code'])
+                || $response['code'] !== 'OK'
+                || $this->config['DEBUG']
+            ) {
+                $log = 'Curl Error:' . curl_error($curl) . '---Response:' . $responsejson . '---Url:' . $url;
                 if (class_exists('PrestaShopLogger')) {
-                    PrestaShopLogger::addLog('Curl Error:' . curl_error($curl) . '---Response:' . $responsejson . '---Url:' . $url, 2, null, $this->name);
+                    PrestaShopLogger::addLog(
+                        $log,
+                        2,
+                        null,
+                        $this->name
+                    );
                 } elseif (class_exists('Logger')) {
-                    Logger::addLog('Curl Error:' . curl_error($curl) . '---Response:' . $responsejson . '---Url:' . $url, 2, null, $this->name);
+                    Logger::addLog(
+                        $log,
+                        2,
+                        null,
+                        $this->name
+                    );
                 }
-
             }
         }
         $result = true;
@@ -468,7 +506,7 @@ class Klantenvertellen extends Module
     {
         $sql = 'SELECT status FROM `' . _DB_PREFIX_ . 'klantenvertellen`
                             WHERE `id_customer` = ' . (int)$customer_id . ' AND `id_shop` = ' . (int)$id_shop
-                            . ' AND TO_DAYS(NOW()) - TO_DAYS(date_add) <= 31';
+            . ' AND TO_DAYS(NOW()) - TO_DAYS(date_add) <= 31';
 
         $result = Db::getInstance()->executeS($sql);
         if (is_array($result) && count($result)) {
@@ -481,22 +519,26 @@ class Klantenvertellen extends Module
     {
         $sql = 'INSERT INTO `' . _DB_PREFIX_ . 'klantenvertellen`
                             (`id_customer`, `status`, `id_shop`, `date_add`)
-			VALUES(' . (int)$customer_id . ', \'sent\', ' . (int)$id_shop . ', NOW()) ON DUPLICATE KEY UPDATE date_add = values(date_add)';
+			VALUES(' . (int)$customer_id . ', \'sent\', ' . (int)$id_shop . ', NOW()) '
+            . 'ON DUPLICATE KEY UPDATE date_add = values(date_add)';
 
         Db::getInstance()->executeS($sql);
     }
 
-	public function hookModuleRoutes() {
-		require_once __DIR__.'/vendor/autoload.php'; // And the autoload here to make our Composer classes available everywhere!
-	}
+    public function hookModuleRoutes()
+    {
+        require_once 'vendor/autoload.php';
+        // And the autoload here to make our Composer classes available everywhere!
+    }
 
-    private function initCache() {
-	    $filesystemAdapter = new Local(_PS_CACHE_DIR_ . 'cachefs');
-	    $filesystem        = new Filesystem($filesystemAdapter);
+    private function initCache()
+    {
+        $filesystemAdapter = new Local(_PS_CACHE_DIR_ . 'cachefs');
+        $filesystem = new Filesystem($filesystemAdapter);
 
-	    $pool = new FilesystemCachePool($filesystem);
-	    $pool->setFolder($this->name);
+        $pool = new FilesystemCachePool($filesystem);
+        $pool->setFolder($this->name);
 
-	    $this->cache = $pool;
+        $this->cache = $pool;
     }
 }
